@@ -33,7 +33,7 @@ async def create_product(product: dict):
     cars_dicts=cars.to_dict(orient="records")
     for i in range(0, len(cars_dicts), 30):
         batch = cars_dicts[i:i + 30]
-        result=collection.insert_many(batch)
+        result= await collection.insert_many(batch)
         time.sleep(0.2)
     return {"id:": str(len(result.inserted_id))}
 
@@ -43,13 +43,13 @@ async def read_product():
     cursor = await collection.find().to_list(100)
     return [fix_id(p) for p in cursor]
 
-# # Read a product
-# @app.get("/products/{id}")
-# async def get_product(id: str):
-#     product = await collection.find_one({"_id": ObjectId(id)})
-#     if not product:
-#         raise HTTPException(404, "Product not Found")
-#     return fix_id(product)
+# Read a car
+@app.get("/products/{id}")
+async def get_product(id: str):
+    product = await collection.find_one({"_id": ObjectId(id)})
+    if not product:
+        raise HTTPException(404, "Product not Found")
+    return fix_id(product)
 
 # # Update
 # @app.put("/products/{id}")
