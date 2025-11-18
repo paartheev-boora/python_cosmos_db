@@ -28,7 +28,7 @@ async def root():
 
 # Insert
 @app.post("/cars")
-async def create_product(product: dict):
+async def create_cars(product: dict):
     cars=pd.read_csv("car_mileage_with_nulls.csv")
     cars_dicts=cars.to_dict(orient="records")
     for i in range(0, len(cars_dicts), 30):
@@ -39,13 +39,13 @@ async def create_product(product: dict):
 
 # Read
 @app.get("/cars")
-async def read_product():
+async def read_car():
     cursor = await collection.find().to_list(100)
     return [fix_id(p) for p in cursor]
 
 # Read a car
-@app.get("/products/{id}")
-async def get_product(id: str):
+@app.get("/cars/{id}")
+async def get_car(id: str):
     product = await collection.find_one({"_id": ObjectId(id)})
     if not product:
         raise HTTPException(404, "Product not Found")
