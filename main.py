@@ -35,7 +35,7 @@ async def create_cars(product: dict):
         batch = cars_dicts[i:i + 30]
         result= await collection.insert_many(batch)
         time.sleep(0.2)
-    return {"id:": str(len(result.inserted_id))}
+    return {"id:": str(len(result.inserted_ids))}
 
 # Read
 @app.get("/cars")
