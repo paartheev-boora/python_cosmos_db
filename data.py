@@ -37,7 +37,7 @@ print(df)
 # Make 20% of mileage null
 np.random.seed(42)
 null_indices = np.random.choice(df.index, size=int(0.2 * len(df)), replace=False)
-df.loc[null_indices, "mileage_kmpl"] = np.nan
+df.loc[null_indices, "mileage_kmpl"] = None
 
 # Save new file
 df.to_csv(sample_data, index=False)
