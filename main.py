@@ -1,74 +1,102 @@
-from pymongo import MongoClient
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from motor.motor_asyncio import AsyncIOMotorClient
-import os
+from dotenv import load_dotenv
 from bson import ObjectId
 import pandas as pd
+import os
 import time
+
 load_dotenv()
 
 CONN_STRING = os.getenv("COSMOS_CONN_STRING")
 DB_NAME = os.getenv("DB_NAME")
 COLL_NAME = os.getenv("COLLECTION")
-og_data = os.getenv("FULL_PATH")
-sample_data = os.getenv("NULL_DATA")
+DATA_FILE = os.getenv("NULL_DATA")     # load null dataset
+FULL_DATA_FILE = os.getenv("FULL_PATH")  # load original dataset
+
+if not all([CONN_STRING, DB_NAME, COLL_NAME]):
+    raise Exception("Missing environment variables for CosmosDB")
 
 app = FastAPI()
+
 client = AsyncIOMotorClient(CONN_STRING, tls=True, tlsAllowInvalidCertificates=True)
 db = client[DB_NAME]
 collection = db[COLL_NAME]
 
+
 def fix_id(doc):
-    doc["id"] = str(doc["_id"])
-    del doc["_id"]
-    return doc
+    """Convert Mongo _id to id string without mutating original object."""
+    return {**doc, "id": str(doc["_id"]), "_id": None}
+
 
 @app.get("/")
 async def root():
-    return {"message": "Cosmos App running"}
+    return {"message": "Cosmos App running successfully"}
 
-# Insert
-@app.post("/cars")
-async def create_cars(product: dict):
-    cars=pd.read_csv(og_data)
-    cars_dicts=cars.to_dict(orient="records")
-    for i in range(0, len(cars_dicts), 30):
-        batch = cars_dicts[i:i + 30]
-        result= await collection.insert_many(batch)
+
+# INSERT
+@app.post("/cars/insert-null-data")
+async def insert_null_dataset():
+    if not os.path.exists(DATA_FILE):
+        raise HTTPException(400, f"File not found: {DATA_FILE}")
+
+    df = pd.read_csv(DATA_FILE)
+    records = df.to_dict(orient="records")
+
+    inserted_count = 0
+
+    for i in range(0, len(records), 30):
+        batch = records[i:i+30]
+
+        # Remove _id (Cosmos rejects it)
+        for doc in batch:
+            doc.pop("_id", None)
+
+        result = await collection.insert_many(batch)
+        inserted_count += len(result.inserted_ids)
         time.sleep(0.2)
-    return {"id:": str(len(result.inserted_ids))}
 
-# Read
+    return {"inserted_count": inserted_count, "status": "success"}
+
+
+@app.post("/cars/insert-full-data")
+async def insert_full_dataset():
+    if not os.path.exists(FULL_DATA_FILE):
+        raise HTTPException(400, f"File not found: {FULL_DATA_FILE}")
+
+    df = pd.read_csv(FULL_DATA_FILE)
+    records = df.to_dict(orient="records")
+
+    inserted_count = 0
+
+    for i in range(0, len(records), 30):
+        batch = records[i:i+30]
+        for doc in batch:
+            doc.pop("_id", None)
+
+        result = await collection.insert_many(batch)
+        inserted_count += len(result.inserted_ids)
+        time.sleep(0.2)
+
+    return {"inserted_count": inserted_count, "status": "success"}
+
+
+# READ ALL
 @app.get("/cars")
-async def read_car():
-    cursor = await collection.find().to_list(100)
-    return [fix_id(p) for p in cursor]
+async def read_all():
+    cursor = await collection.find().to_list(None)
+    return [fix_id(doc) for doc in cursor]
 
-# Read a car
+
+# READ ONE
 @app.get("/cars/{id}")
 async def get_car(id: str):
-    product = await collection.find_one({"_id": ObjectId(id)})
-    if not product:
-        raise HTTPException(404, "Product not Found")
-    return fix_id(product)
+    try:
+        doc = await collection.find_one({"_id": ObjectId(id)})
+    except:
+        raise HTTPException(400, "Invalid ObjectId format")
 
-# # Update
-# @app.put("/products/{id}")
-# async def update_item(id: str, data: dict):
-#     result = await collection.update_one(
-#         {"_id": ObjectId(id)},
-#         {"$set": data}
-#     )
-#     if result.modified_count == 0:
-#         raise HTTPException(404, "Product not Found")
-#     return {"messsage": "Updated"}
+    if not doc:
+        raise HTTPException(404, "Car not found")
 
-# # Delete
-# @app.delete("/products/{id}")
-# async def delete_product(id: str):
-#     result = await collection.delete_one({"_id": ObjectId(id)})
-#     if result.deleted_count == 0:
-#         raise HTTPException(404, "Product not Found")
-#     return {"message": "Deleted Successfully"}
-
+    return fix_id(doc)
