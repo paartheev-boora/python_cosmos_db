@@ -11,6 +11,8 @@ load_dotenv()
 CONN_STRING = os.getenv("COSMOS_CONN_STRING")
 DB_NAME = os.getenv("DB_NAME")
 COLL_NAME = os.getenv("COLLECTION")
+og_data = os.getenv("FULL_PATH")
+sample_data = os.getenv("NULL_DATA")
 
 app = FastAPI()
 client = AsyncIOMotorClient(CONN_STRING, tls=True, tlsAllowInvalidCertificates=True)
