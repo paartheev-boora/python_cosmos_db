@@ -31,7 +31,7 @@ async def root():
 # Insert
 @app.post("/cars")
 async def create_cars(product: dict):
-    cars=pd.read_csv("car_mileage_with_nulls.csv")
+    cars=pd.read_csv(og_data)
     cars_dicts=cars.to_dict(orient="records")
     for i in range(0, len(cars_dicts), 30):
         batch = cars_dicts[i:i + 30]
